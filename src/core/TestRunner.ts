@@ -328,27 +328,34 @@ export class TestRunner {
       case 'verify':
         const targetText = resolvedValue || action.description || '';
         if (!action.selector || ['document', 'body', 'title', 'head'].includes(action.selector.toLowerCase())) {
-          const startTime = Date.now();
-          while (Date.now() - startTime < 8000) {
-            const pageTitle = await page.title();
-            const pageContent = await page.content();
-            if (pageTitle.toLowerCase().includes(targetText.toLowerCase()) || pageContent.toLowerCase().includes(targetText.toLowerCase())) {
-              return;
-            }
-            if (await page.getByText(targetText, { exact: false }).first().isVisible().catch(() => false)) {
-              return;
-            }
-            await page.waitForTimeout(500);
-          }
-          throw new Error(`Verification failed. Page does not contain text or title '${targetText}'.`);
+          // 1. Fast & Reliable: Auto-wait for REALLY VISIBLE / RENDERED text using Playwright's native DOM mutation observer
+          const isVisibleText = await page.getByText(targetText, { exact: false }).first()
+            .waitFor({ state: 'visible', timeout: 8000 })
+            .then(() => true)
+            .catch(() => false);
+          if (isVisibleText) return;
+
+          // 2. Cheap Fallback: Single title check (no loop)
+          const pageTitle = await page.title().catch(() => '');
+          if (pageTitle.toLowerCase().includes(targetText.toLowerCase())) return;
+
+          // 3. Last Resort: Single DOM HTML serialization check (only once, never polled)
+          const pageContent = await page.content().catch(() => '');
+          if (pageContent.toLowerCase().includes(targetText.toLowerCase())) return;
+
+          throw new Error(`Verification failed. Page does not contain visible text or title '${targetText}'.`);
         } else {
           try {
-            // Playwright waitFor({ state: 'visible' }) auto-waits up to 10s for element to hydrate/render
+            // Specific element selector branch: Auto-waits up to 10s for element to hydrate & become visible
             await locator.first().waitFor({ state: 'visible', timeout: 10000 });
             return;
           } catch {
-            if (targetText && (await page.getByText(targetText, { exact: false }).first().isVisible().catch(() => false))) {
-              return;
+            if (targetText) {
+              const isVisibleText = await page.getByText(targetText, { exact: false }).first()
+                .waitFor({ state: 'visible', timeout: 3000 })
+                .then(() => true)
+                .catch(() => false);
+              if (isVisibleText) return;
             }
             throw new Error(`Verification failed. Element '${action.selector}' was not visible within 10s.`);
           }
