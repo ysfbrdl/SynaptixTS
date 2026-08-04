@@ -1,7 +1,0 @@
-name: "User Login and Interface Navigation Demo"
-tags: ["smoke", "demo"]
-steps:
-  - "Go to /"
-  - "Type a random name into the name or username input"
-  - "Type a unique email into the email input"
-  - "Click login or submit button"
