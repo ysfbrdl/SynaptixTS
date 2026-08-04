@@ -103,9 +103,9 @@ export class TestRunner {
         const pageTitle = await page.title().catch(() => '');
         const currentDomSignature = `${pageTitle}|${currentUrl}`;
 
-        // Direct Navigation Rule: If step is a URL navigation command (e.g. "Go to https://..."), resolve instantly without AI
-        const urlMatch = actionText.match(/(https?:\/\/[^\s]+|\/[^\s]*)/i);
-        if ((rawCheck.startsWith('go to') || rawCheck.startsWith('navigate to') || rawCheck.includes('http')) && urlMatch) {
+        // Direct Navigation Rule: Strictly match explicit URL navigation commands (e.g. "Go to https://...")
+        const urlMatch = actionText.match(/(https?:\/\/[^\s]+)/i);
+        if ((rawCheck.startsWith('go to') || rawCheck.startsWith('navigate to') || rawCheck.startsWith('http://') || rawCheck.startsWith('https://')) && urlMatch) {
           action = {
             actionType: 'navigate',
             selector: urlMatch[1],
@@ -264,9 +264,15 @@ export class TestRunner {
       case 'click':
         await this.dismissToastsAndWaitLoaders(page);
 
-        // Smart Dropdown / Paginator Handler: If step is selecting rows per page (e.g. 20, 50, 100)
-        const checkText = `${action.description || ''} ${action.selector || ''}`.toLowerCase();
-        if (checkText.includes('pagination') || checkText.includes('20') || checkText.includes('rows')) {
+        // Smart Dropdown / Paginator Handler: Strictly triggered only when AI identified a paginator / combobox dropdown action
+        const isPaginator =
+          action.semanticRole?.toLowerCase().includes('combobox') ||
+          action.description?.toLowerCase().includes('paginat') ||
+          action.selector?.toLowerCase().includes('paginator') ||
+          action.selector?.toLowerCase().includes('p-dropdown') ||
+          (action.description?.toLowerCase().includes('items per page') && action.selector?.includes('20'));
+
+        if (isPaginator) {
           const paginatorDropdown = page.locator('.p-paginator p-dropdown, .p-paginator .p-dropdown-label, .p-paginator-rpp-options, p-dropdown, mat-select').first();
           if (await paginatorDropdown.isVisible({ timeout: 2000 }).catch(() => false)) {
             await paginatorDropdown.click({ timeout: 5000 }).catch(() => {});
