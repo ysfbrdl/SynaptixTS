@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { PlaywrightAction } from '../types/index.js';
+import { DomTrimmer } from './DomTrimmer.js';
 
 export class BrainService {
   private apiKeys: string[] = [];
@@ -56,7 +57,8 @@ Rules:
     if (lastExecutionError) {
       promptText += `Previous Attempt Error: ${lastExecutionError}\n`;
     }
-    promptText += `Current DOM:\n${minifiedHtml.slice(0, 15000)}`;
+    const relevantDom = DomTrimmer.trimByRelevance(minifiedHtml, stepAction, 25000);
+    promptText += `Current DOM:\n${relevantDom}`;
 
     parts.push(promptText);
 
