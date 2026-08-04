@@ -264,9 +264,11 @@ export class TestRunner {
 
     const locator = this.playwrightManager.findSmartLocator(page, action.selector);
 
+    // Generalize Toast & Progress Loader Cleanup before ANY element interaction (click, type, verify, hover, select)
+    await this.dismissToastsAndWaitLoaders(page);
+
     switch (actionType) {
       case 'click':
-        await this.dismissToastsAndWaitLoaders(page);
 
         // Smart Dropdown / Paginator Handler: Strictly triggered only when AI identified a paginator / combobox dropdown action
         const isPaginator =
