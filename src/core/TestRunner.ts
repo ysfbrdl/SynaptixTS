@@ -100,6 +100,9 @@ export class TestRunner {
         let action: PlaywrightAction | null = null;
         let isFromCache = false;
 
+        const pageTitle = await page.title().catch(() => '');
+        const currentDomSignature = `${pageTitle}|${currentUrl}`;
+
         // Direct Navigation Rule: If step is a URL navigation command (e.g. "Go to https://..."), resolve instantly without AI
         const urlMatch = actionText.match(/(https?:\/\/[^\s]+|\/[^\s]*)/i);
         if ((rawCheck.startsWith('go to') || rawCheck.startsWith('navigate to') || rawCheck.includes('http')) && urlMatch) {
@@ -111,7 +114,7 @@ export class TestRunner {
           };
           console.log(`   🚀 [DIRECT ACTION] Navigating to ${urlMatch[1]}`);
         } else if (attempt === 0 && !lastError) {
-          action = this.cache.get(cacheKey);
+          action = this.cache.get(cacheKey, currentDomSignature);
           if (action) {
             isFromCache = true;
             console.log(`   ⚡ [SMART CACHE HIT] Using cached selector for step`);
@@ -167,7 +170,7 @@ export class TestRunner {
 
         // Save to cache ONLY AFTER action successfully executes and passes on page
         if (!isFromCache && action && action.selector) {
-          this.cache.set(cacheKey, action, currentUrl, actionText);
+          this.cache.set(cacheKey, action, currentUrl, actionText, currentDomSignature);
         }
 
         this.actionHistory.push(`SUCCESS: ${step.name} -> ${action.actionType} on ${action.selector}`);

@@ -34,6 +34,7 @@ export interface CacheEntry {
   createdAt: string;
   urlPattern: string;
   hitCount: number;
+  domSignature?: string;
 }
 
 export interface TestSettings {

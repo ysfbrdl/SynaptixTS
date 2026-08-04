@@ -53,56 +53,60 @@ export class SmartCache {
     }
   }
 
-  public get(key: string): PlaywrightAction | null {
-    // 1st Priority: Shared Cache (exact match)
-    let sharedEntry = this.sharedCacheMap.get(key);
-    if (!sharedEntry) {
-      // Fuzzy fallback: match by action text part
+  public get(key: string, currentDomSignature?: string): PlaywrightAction | null {
+    let entry = this.sharedCacheMap.get(key) || this.scenarioCacheMap.get(key);
+
+    if (!entry) {
       const actionPart = key.split('_').slice(2).join('_');
       if (actionPart) {
         for (const [k, v] of this.sharedCacheMap.entries()) {
-          if (k.toLowerCase().includes(actionPart)) {
-            sharedEntry = v;
-            break;
+          if (k.toLowerCase().includes(actionPart)) { entry = v; break; }
+        }
+        if (!entry) {
+          for (const [k, v] of this.scenarioCacheMap.entries()) {
+            if (k.toLowerCase().includes(actionPart)) { entry = v; break; }
           }
         }
       }
-    }
-    if (sharedEntry) {
-      sharedEntry.hitCount++;
-      return sharedEntry.action;
     }
 
-    // 2nd Priority: Scenario-specific Cache (exact match)
-    let scenarioEntry = this.scenarioCacheMap.get(key);
-    if (!scenarioEntry) {
-      const actionPart = key.split('_').slice(2).join('_');
-      if (actionPart) {
-        for (const [k, v] of this.scenarioCacheMap.entries()) {
-          if (k.toLowerCase().includes(actionPart)) {
-            scenarioEntry = v;
-            break;
-          }
+    if (entry) {
+      if (currentDomSignature && entry.domSignature) {
+        if (!this.isSignatureMatching(entry.domSignature, currentDomSignature)) {
+          console.log(`   ⚠️ [CACHE SIGNATURE MISMATCH] Page structure changed. Bypassing cache to trigger AI Self-Healing...`);
+          return null;
         }
       }
-    }
-    if (scenarioEntry) {
-      scenarioEntry.hitCount++;
-      return scenarioEntry.action;
+      entry.hitCount++;
+      return entry.action;
     }
 
     return null;
   }
 
+  private isSignatureMatching(savedSig: string, currentSig: string): boolean {
+    if (savedSig === currentSig) return true;
+    const savedParts = savedSig.toLowerCase().split('|').filter(Boolean);
+    const currentParts = currentSig.toLowerCase().split('|').filter(Boolean);
+    if (savedParts.length === 0) return true;
+    let matchCount = 0;
+    for (const part of savedParts) {
+      if (currentParts.includes(part)) matchCount++;
+    }
+    const ratio = matchCount / savedParts.length;
+    return ratio >= 0.5;
+  }
+
   /**
    * Hybrid Set: Categorizes step into shared_cache or scenario_cache based on action and URL.
    */
-  public set(key: string, action: PlaywrightAction, rawUrl: string, stepAction: string): void {
+  public set(key: string, action: PlaywrightAction, rawUrl: string, stepAction: string, domSignature?: string): void {
     const entry: CacheEntry = {
       action,
       createdAt: new Date().toISOString(),
       urlPattern: this.normalizeUrl(rawUrl),
-      hitCount: 1
+      hitCount: 1,
+      domSignature
     };
 
     if (this.isSharedStep(stepAction, rawUrl)) {
