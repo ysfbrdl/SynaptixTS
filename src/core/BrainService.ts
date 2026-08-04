@@ -86,9 +86,14 @@ Rules:
                 properties: {
                   actionType: {
                     type: SchemaType.STRING,
-                    description: 'Action type. Must be one of: click, type, select, hover, press, navigate, verify, wait'
+                    format: 'enum',
+                    enum: ['click', 'type', 'select', 'hover', 'press', 'navigate', 'verify', 'wait'],
+                    description: 'Strictly one of the allowed actions: click, type, select, hover, press, navigate, verify, wait.'
                   },
-                  selector: { type: SchemaType.STRING, description: 'CSS/XPath or Playwright semantic selector' },
+                  selector: { 
+                    type: SchemaType.STRING, 
+                    description: 'CSS/XPath/ARIA selector. NEVER use nth=X or index-based matchers unless absolutely no semantic attribute exists.' 
+                  },
                   value: { type: SchemaType.STRING, description: 'Text to type, select option, or expected value' },
                   description: { type: SchemaType.STRING, description: 'Explanation of chosen action' },
                   semanticRole: { type: SchemaType.STRING, description: 'ARIA role if applicable' },
