@@ -104,19 +104,34 @@ Rules:
             }
           });
 
-          const result = await model.generateContent(parts);
-          const responseText = result.response.text();
-          const parsed = JSON.parse(responseText) as PlaywrightAction;
-          return parsed;
-        } catch (err: any) {
-          lastErr = err;
-          const errMsg = err.message || '';
-          if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED')) {
-            console.warn(`   ⚠️ Rate limit hit on Key #${this.currentKeyIndex + 1}. Instant rotation to next key...`);
-            this.rotateKey();
-          } else {
-            break;
+          for (let retry = 0; retry < 2; retry++) {
+            try {
+              const generatePromise = model.generateContent(parts);
+              const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('API_TIMEOUT: Gemini API request timed out after 20s')), 20000)
+              );
+
+              const result = await Promise.race([generatePromise, timeoutPromise]);
+              const responseText = result.response.text();
+              const parsed = JSON.parse(responseText) as PlaywrightAction;
+              return parsed;
+            } catch (err: any) {
+              lastErr = err;
+              const errMsg = err.message || '';
+              const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED');
+
+              if (isRateLimit) {
+                console.warn(`   ⚠️ Rate limit hit on Key #${this.currentKeyIndex + 1}. Instant rotation to next key...`);
+                this.rotateKey();
+                break;
+              } else if (retry === 0) {
+                console.warn(`   🌐 Transient API network issue / timeout (${errMsg}). Retrying in 1s on same key...`);
+                await new Promise(res => setTimeout(res, 1000));
+              }
+            }
           }
+        } catch (outerErr: any) {
+          lastErr = outerErr;
         }
       }
     }
