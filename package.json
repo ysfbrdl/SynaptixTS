@@ -1,0 +1,27 @@
+{
+  "name": "synaptix-ts",
+  "version": "1.0.0",
+  "description": "AI-Native End-to-End Test Automation Framework powered by Playwright and Google Gemini",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "test": "tsx src/index.ts scenarios/demo.yaml"
+  },
+  "keywords": ["testing", "playwright", "ai", "gemini", "automation", "e2e"],
+  "author": "Yusuf Birdal",
+  "license": "MIT",
+  "dependencies": {
+    "@faker-js/faker": "^9.5.0",
+    "@google/generative-ai": "^0.24.0",
+    "dotenv": "^16.4.7",
+    "playwright": "^1.50.0",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

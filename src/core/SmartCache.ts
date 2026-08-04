@@ -1,0 +1,197 @@
+import fs from 'fs';
+import path from 'path';
+import { CacheEntry, PlaywrightAction } from '../types/index.js';
+
+export class SmartCache {
+  private sharedCacheMap: Map<string, CacheEntry> = new Map();
+  private scenarioCacheMap: Map<string, CacheEntry> = new Map();
+  
+  private sharedCacheFilePath: string;
+  private scenarioCacheFilePath: string | null = null;
+  private scenariosDir: string;
+
+  constructor(cacheDirPath: string = './.cache') {
+    if (!fs.existsSync(cacheDirPath)) {
+      fs.mkdirSync(cacheDirPath, { recursive: true });
+    }
+    
+    this.scenariosDir = path.join(cacheDirPath, 'scenarios');
+    if (!fs.existsSync(this.scenariosDir)) {
+      fs.mkdirSync(this.scenariosDir, { recursive: true });
+    }
+
+    this.sharedCacheFilePath = path.join(cacheDirPath, 'shared_cache.json');
+    this.loadSharedCache();
+  }
+
+  /**
+   * Sets current active scenario for scenario-scoped caching.
+   */
+  public setScenario(scenarioName: string): void {
+    const sanitized = scenarioName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    this.scenarioCacheFilePath = path.join(this.scenariosDir, `${sanitized}.json`);
+    this.scenarioCacheMap.clear();
+    this.loadScenarioCache();
+  }
+
+  public generateKey(stepAction: string, url: string, stepIndex: number): string {
+    const normalizedUrl = this.normalizeUrl(url);
+    const sanitizedAction = stepAction.trim().toLowerCase();
+    return `${stepIndex}_${normalizedUrl}_${sanitizedAction}`;
+  }
+
+  public normalizeUrl(rawUrl: string): string {
+    try {
+      const urlObj = new URL(rawUrl);
+      let pathname = urlObj.pathname;
+      pathname = pathname
+        .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':guid')
+        .replace(/\/\d+/g, '/:id');
+      return `${urlObj.host}${pathname}`;
+    } catch {
+      return rawUrl;
+    }
+  }
+
+  public get(key: string): PlaywrightAction | null {
+    // 1st Priority: Shared Cache (exact match)
+    let sharedEntry = this.sharedCacheMap.get(key);
+    if (!sharedEntry) {
+      // Fuzzy fallback: match by action text part
+      const actionPart = key.split('_').slice(2).join('_');
+      if (actionPart) {
+        for (const [k, v] of this.sharedCacheMap.entries()) {
+          if (k.toLowerCase().includes(actionPart)) {
+            sharedEntry = v;
+            break;
+          }
+        }
+      }
+    }
+    if (sharedEntry) {
+      sharedEntry.hitCount++;
+      return sharedEntry.action;
+    }
+
+    // 2nd Priority: Scenario-specific Cache (exact match)
+    let scenarioEntry = this.scenarioCacheMap.get(key);
+    if (!scenarioEntry) {
+      const actionPart = key.split('_').slice(2).join('_');
+      if (actionPart) {
+        for (const [k, v] of this.scenarioCacheMap.entries()) {
+          if (k.toLowerCase().includes(actionPart)) {
+            scenarioEntry = v;
+            break;
+          }
+        }
+      }
+    }
+    if (scenarioEntry) {
+      scenarioEntry.hitCount++;
+      return scenarioEntry.action;
+    }
+
+    return null;
+  }
+
+  /**
+   * Hybrid Set: Categorizes step into shared_cache or scenario_cache based on action and URL.
+   */
+  public set(key: string, action: PlaywrightAction, rawUrl: string, stepAction: string): void {
+    const entry: CacheEntry = {
+      action,
+      createdAt: new Date().toISOString(),
+      urlPattern: this.normalizeUrl(rawUrl),
+      hitCount: 1
+    };
+
+    if (this.isSharedStep(stepAction, rawUrl)) {
+      this.sharedCacheMap.set(key, entry);
+      this.saveSharedCache();
+    } else {
+      this.scenarioCacheMap.set(key, entry);
+      this.saveScenarioCache();
+    }
+  }
+
+  public invalidate(key: string): void {
+    let touched = false;
+    if (this.sharedCacheMap.has(key)) {
+      this.sharedCacheMap.delete(key);
+      this.saveSharedCache();
+      touched = true;
+    }
+    if (this.scenarioCacheMap.has(key)) {
+      this.scenarioCacheMap.delete(key);
+      this.saveScenarioCache();
+      touched = true;
+    }
+  }
+
+  /**
+   * Determines if a step is a common/global step (login, auth, home navigation, etc.)
+   */
+  private isSharedStep(stepAction: string, rawUrl: string): boolean {
+    const actionLower = stepAction.toLowerCase();
+    const sharedKeywords = ['login', 'log in', 'giriş', 'sign in', 'logout', 'log out', 'çıkış', 'authenticate', 'username input', 'password input'];
+    return sharedKeywords.some((kw) => actionLower.includes(kw));
+  }
+
+  private loadSharedCache(): void {
+    if (fs.existsSync(this.sharedCacheFilePath)) {
+      try {
+        const rawData = fs.readFileSync(this.sharedCacheFilePath, 'utf-8');
+        const jsonObj = JSON.parse(rawData);
+        for (const [k, v] of Object.entries(jsonObj)) {
+          this.sharedCacheMap.set(k, v as CacheEntry);
+        }
+      } catch (err) {
+        console.warn(`[SmartCache] Failed to load shared cache: ${err}`);
+      }
+    }
+  }
+
+  private loadScenarioCache(): void {
+    if (this.scenarioCacheFilePath && fs.existsSync(this.scenarioCacheFilePath)) {
+      try {
+        const rawData = fs.readFileSync(this.scenarioCacheFilePath, 'utf-8');
+        const jsonObj = JSON.parse(rawData);
+        for (const [k, v] of Object.entries(jsonObj)) {
+          this.scenarioCacheMap.set(k, v as CacheEntry);
+        }
+      } catch (err) {
+        console.warn(`[SmartCache] Failed to load scenario cache: ${err}`);
+      }
+    }
+  }
+
+  public saveSharedCache(): void {
+    try {
+      const obj: Record<string, CacheEntry> = {};
+      this.sharedCacheMap.forEach((val, key) => {
+        obj[key] = val;
+      });
+      fs.writeFileSync(this.sharedCacheFilePath, JSON.stringify(obj, null, 2), 'utf-8');
+    } catch (err) {
+      console.warn(`[SmartCache] Failed to save shared cache: ${err}`);
+    }
+  }
+
+  public saveScenarioCache(): void {
+    if (!this.scenarioCacheFilePath) return;
+    try {
+      const obj: Record<string, CacheEntry> = {};
+      this.scenarioCacheMap.forEach((val, key) => {
+        obj[key] = val;
+      });
+      fs.writeFileSync(this.scenarioCacheFilePath, JSON.stringify(obj, null, 2), 'utf-8');
+    } catch (err) {
+      console.warn(`[SmartCache] Failed to save scenario cache: ${err}`);
+    }
+  }
+
+  public saveAll(): void {
+    this.saveSharedCache();
+    this.saveScenarioCache();
+  }
+}

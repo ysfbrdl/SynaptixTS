@@ -1,0 +1,60 @@
+{
+  "6_t-operator.gdaoperator.aero/dashboard_click on the 'aircraft management' button": {
+    "action": {
+      "actionType": "click",
+      "description": "Click on the Aircraft Management menu button",
+      "selector": "role=button[name=\"Aircraft Management\"]",
+      "semanticName": "Aircraft Management",
+      "semanticRole": "button"
+    },
+    "createdAt": "2026-07-30T17:34:00.000Z",
+    "urlPattern": "t-operator.gdaoperator.aero/dashboard",
+    "hitCount": 9
+  },
+  "7_t-operator.gdaoperator.aero/dashboard_verify that the 'aircraft list' submenu is visible": {
+    "action": {
+      "actionType": "verify",
+      "description": "Verify that Aircraft List submenu is visible",
+      "selector": "text=\"Aircraft List\"",
+      "value": "Aircraft List"
+    },
+    "createdAt": "2026-07-30T17:34:00.000Z",
+    "urlPattern": "t-operator.gdaoperator.aero/dashboard",
+    "hitCount": 8
+  },
+  "8_t-operator.gdaoperator.aero/dashboard_verify that 'total fleet' value equals to sum of the available, in flight, maintenance and reserved values in the 'fleet status' widget": {
+    "action": {
+      "actionType": "verify",
+      "description": "Verify Fleet Status widget and Total Fleet values",
+      "selector": "text=\"Fleet Status\"",
+      "value": "Total Fleet"
+    },
+    "createdAt": "2026-07-30T17:34:00.000Z",
+    "urlPattern": "t-operator.gdaoperator.aero/dashboard",
+    "hitCount": 8
+  },
+  "1_blank_go to https://t-operator.gdaoperator.aero/": {
+    "action": {
+      "actionType": "navigate",
+      "selector": "https://t-operator.gdaoperator.aero/",
+      "value": "https://t-operator.gdaoperator.aero/",
+      "description": "Navigate to https://t-operator.gdaoperator.aero/"
+    },
+    "createdAt": "2026-08-04T12:14:57.448Z",
+    "urlPattern": "blank",
+    "hitCount": 1
+  },
+  "5_t-operator.gdaoperator.aero/dashboard_verify that the page contains the title 'operational dashboard'": {
+    "action": {
+      "actionType": "verify",
+      "description": "Verify that the page contains the title 'Operational Dashboard'",
+      "selector": "role=heading[level=\"1\"][name=\"Operational Dashboard\"]",
+      "semanticName": "Operational Dashboard",
+      "semanticRole": "heading",
+      "value": "Operational Dashboard"
+    },
+    "createdAt": "2026-07-31T14:01:17.944Z",
+    "urlPattern": "t-operator.gdaoperator.aero/dashboard",
+    "hitCount": 3
+  }
+}

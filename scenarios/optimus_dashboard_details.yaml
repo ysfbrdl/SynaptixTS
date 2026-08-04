@@ -1,0 +1,14 @@
+name: Optimus Dashboard Detailed Functional Test
+description: Verify sidebar menus and dashboard widget data based on live investigation
+tags:
+  - smoke
+  - optimus_dashboard_details
+steps:
+  - Go to https://t-operator.gdaoperator.aero/
+  - Type 'yusuf.birdal@gozendigital.onmicrosoft.com' into the username input
+  - Type '123456' into the password input
+  - Click the login button
+  - Verify that the page contains the title 'Operational Dashboard'
+  - Click on the 'Aircraft Management' button
+  - Verify that the 'Aircraft List' submenu is visible
+  - Verify that 'Total Fleet' value equals to sum of the Available, In Flight, Maintenance and Reserved values in the 'Fleet Status' widget

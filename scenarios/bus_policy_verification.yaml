@@ -1,0 +1,14 @@
+name: Bus Policy Verification Test
+description: Verify bus policy visibility
+tags:
+  - smoke
+  - bus_policy_verification
+steps:
+  - Go to https://t-operator.gdaoperator.aero/
+  - Type 'yusuf.birdal@gozendigital.onmicrosoft.com' into the username input
+  - Type '123456' into the password input
+  - Click the login button
+  - Click the bus policy button between the search button and profile button
+  - Verify that the Bus Policy List popup is opened
+  - Click the "20" button in the pagination row of the Bus Policy List popup
+  - Verify that Pet Weight exists under POLICY NAME column in the popup
