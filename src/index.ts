@@ -3,6 +3,7 @@ import path from 'path';
 import parseYaml from 'yaml';
 import dotenv from 'dotenv';
 import { TestRunner } from './core/TestRunner.js';
+import { HtmlReportService, MasterReportScenarioResult } from './core/HtmlReportService.js';
 import { Scenario } from './types/index.js';
 
 dotenv.config();
@@ -78,23 +79,53 @@ async function main() {
     matchingScenarios.forEach(m => console.log(`   • ${m.file} (${m.scenario.name || m.scenario.Name || 'Unnamed'})`));
     console.log('');
 
+    const batchResults: MasterReportScenarioResult[] = [];
     let allPassed = true;
+    const suiteStartTime = Date.now();
 
     for (const { file, scenario } of matchingScenarios) {
       console.log(`📁 Executing: ${file}`);
-      const success = await runner.runScenario(scenario);
-      if (!success) allPassed = false;
+      const details = await runner.runScenarioDetails(scenario);
+      batchResults.push({
+        file,
+        scenario,
+        steps: details.steps,
+        isSuccess: details.success
+      });
+      if (!details.success) allPassed = false;
     }
 
+    const suiteDuration = ((Date.now() - suiteStartTime) / 1000).toFixed(1);
+    const passedCount = batchResults.filter(r => r.isSuccess).length;
+    const failedCount = batchResults.length - passedCount;
+    const passRate = Math.round((passedCount / batchResults.length) * 100);
+
+    console.log(`\n================================================================================`);
+    console.log(`📊 SYNAPTIX TEST EXECUTION SUMMARY (@${tagFilter})`);
+    console.log(`================================================================================`);
+    batchResults.forEach(r => {
+      const icon = r.isSuccess ? '✅ PASSED' : '❌ FAILED';
+      const name = r.scenario.name || r.scenario.Name || r.file;
+      const passedSteps = r.steps.filter(s => s.status === 'Passed').length;
+      const sceneDuration = (r.steps.reduce((acc, s) => acc + (s.durationMs || 0), 0) / 1000).toFixed(1);
+      console.log(`${icon} | ${name} (${passedSteps}/${r.steps.length} steps, ${sceneDuration}s) - ${r.file}`);
+    });
+    console.log(`--------------------------------------------------------------------------------`);
+    console.log(`Total Scenarios: ${batchResults.length} | Passed: ${passedCount} | Failed: ${failedCount} | Pass Rate: ${passRate}% | Total Suite Time: ${suiteDuration}s`);
+    console.log(`================================================================================\n`);
+
+    const reporter = new HtmlReportService();
+    const masterReportPath = reporter.generateMasterReport(tagFilter, batchResults);
+    console.log(`🏆 Single Master HTML Report Generated: ${masterReportPath}\n`);
+
     if (allPassed) {
-      console.log(`\n🎉 All tagged scenarios passed successfully!`);
+      console.log(`🎉 All tagged scenarios passed successfully!`);
       process.exit(0);
     } else {
-      console.error(`\n❌ One or more tagged scenarios failed.`);
+      console.error(`❌ One or more tagged scenarios failed.`);
       process.exit(1);
     }
   } else {
-    // If no specific file provided, pick first available .yaml file in scenarios/
     let scenarioFile = targetFile;
     if (!scenarioFile) {
       const scenariosDir = path.resolve('scenarios');
@@ -123,9 +154,17 @@ async function main() {
     try {
       const rawYaml = fs.readFileSync(fullPath, 'utf-8');
       const parsedScenario = parseYaml.parse(rawYaml) as Scenario;
-      const success = await runner.runScenario(parsedScenario);
+      const details = await runner.runScenarioDetails(parsedScenario);
 
-      if (!success) {
+      const reporter = new HtmlReportService();
+      const sceneTitle = parsedScenario.name || parsedScenario.Name || path.basename(scenarioFile);
+      const reportPath = reporter.generateMasterReport(sceneTitle, [
+        { file: path.basename(scenarioFile), scenario: parsedScenario, steps: details.steps, isSuccess: details.success }
+      ]);
+
+      console.log(`\n🏆 Single HTML Report Generated: ${reportPath}`);
+
+      if (!details.success) {
         console.error(`\n❌ Scenario Failed.`);
         process.exit(1);
       } else {

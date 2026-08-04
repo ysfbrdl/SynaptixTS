@@ -27,7 +27,7 @@ export class TestRunner {
     this.reporter = reporter || new HtmlReportService();
   }
 
-  public async runScenario(scenario: Scenario): Promise<boolean> {
+  public async runScenarioDetails(scenario: Scenario): Promise<{ success: boolean; steps: Step[]; durationMs: number }> {
     const scenarioName = scenario.name || scenario.Name || 'Test Scenario';
     console.log(`\n========================================`);
     console.log(`🚀 Running Scenario: ${scenarioName}`);
@@ -74,9 +74,13 @@ export class TestRunner {
       this.cache.saveAll();
     }
 
-    const reportPath = this.reporter.generateReport(scenario, executedSteps, scenarioSuccess);
-    console.log(`\n📊 Report generated: ${reportPath}`);
-    return scenarioSuccess;
+    const totalDurationMs = executedSteps.reduce((acc, s) => acc + (s.durationMs || 0), 0);
+    return { success: scenarioSuccess, steps: executedSteps, durationMs: totalDurationMs };
+  }
+
+  public async runScenario(scenario: Scenario): Promise<boolean> {
+    const res = await this.runScenarioDetails(scenario);
+    return res.success;
   }
 
   private async executeStep(page: Page, scenario: Scenario, step: Step, stepIndex: number): Promise<Step> {
