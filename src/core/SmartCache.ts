@@ -57,7 +57,10 @@ export class SmartCache {
     let entry = this.sharedCacheMap.get(key) || this.scenarioCacheMap.get(key);
 
     if (!entry) {
-      const actionPart = key.split('_').slice(2).join('_');
+      // Fallback 1: match by action text (URL-agnostic substring search)
+      const parts = key.split('_');
+      const stepPrefix = parts[0]; // e.g. "16"
+      const actionPart = parts.slice(2).join('_'); // everything after stepIndex_urlPart
       if (actionPart) {
         for (const [k, v] of this.sharedCacheMap.entries()) {
           if (k.toLowerCase().includes(actionPart)) { entry = v; break; }
@@ -65,6 +68,24 @@ export class SmartCache {
         if (!entry) {
           for (const [k, v] of this.scenarioCacheMap.entries()) {
             if (k.toLowerCase().includes(actionPart)) { entry = v; break; }
+          }
+        }
+      }
+
+      // Fallback 2: match by step index prefix + action text (handles URL changes after navigation)
+      if (!entry && stepPrefix && actionPart) {
+        const stepAndAction = `${stepPrefix}_`;
+        const actionLower = actionPart.toLowerCase();
+        for (const [k, v] of this.scenarioCacheMap.entries()) {
+          if (k.startsWith(stepAndAction) && k.toLowerCase().endsWith(actionLower)) {
+            entry = v; break;
+          }
+        }
+        if (!entry) {
+          for (const [k, v] of this.sharedCacheMap.entries()) {
+            if (k.startsWith(stepAndAction) && k.toLowerCase().endsWith(actionLower)) {
+              entry = v; break;
+            }
           }
         }
       }
@@ -137,17 +158,23 @@ export class SmartCache {
    */
   private isSharedStep(stepAction: string, rawUrl: string): boolean {
     const actionLower = stepAction.toLowerCase();
-    const sharedKeywords = ['login', 'log in', 'giriş', 'sign in', 'logout', 'log out', 'çıkış', 'authenticate', 'username input', 'password input'];
+    const sharedKeywords = [
+      'login', 'log in', 'giriş', 'sign in', 'logout', 'log out', 'çıkış',
+      'authenticate', 'username input', 'password input',
+      'go to', 'navigate', 'open', 'http://', 'https://'
+    ];
     return sharedKeywords.some((kw) => actionLower.includes(kw));
   }
 
   private loadSharedCache(): void {
     if (fs.existsSync(this.sharedCacheFilePath)) {
       try {
-        const rawData = fs.readFileSync(this.sharedCacheFilePath, 'utf-8');
-        const jsonObj = JSON.parse(rawData);
-        for (const [k, v] of Object.entries(jsonObj)) {
-          this.sharedCacheMap.set(k, v as CacheEntry);
+        const rawData = fs.readFileSync(this.sharedCacheFilePath, 'utf-8').trim();
+        if (rawData) {
+          const jsonObj = JSON.parse(rawData);
+          for (const [k, v] of Object.entries(jsonObj)) {
+            this.sharedCacheMap.set(k, v as CacheEntry);
+          }
         }
       } catch (err) {
         console.warn(`[SmartCache] Failed to load shared cache: ${err}`);
@@ -158,10 +185,12 @@ export class SmartCache {
   private loadScenarioCache(): void {
     if (this.scenarioCacheFilePath && fs.existsSync(this.scenarioCacheFilePath)) {
       try {
-        const rawData = fs.readFileSync(this.scenarioCacheFilePath, 'utf-8');
-        const jsonObj = JSON.parse(rawData);
-        for (const [k, v] of Object.entries(jsonObj)) {
-          this.scenarioCacheMap.set(k, v as CacheEntry);
+        const rawData = fs.readFileSync(this.scenarioCacheFilePath, 'utf-8').trim();
+        if (rawData) {
+          const jsonObj = JSON.parse(rawData);
+          for (const [k, v] of Object.entries(jsonObj)) {
+            this.scenarioCacheMap.set(k, v as CacheEntry);
+          }
         }
       } catch (err) {
         console.warn(`[SmartCache] Failed to load scenario cache: ${err}`);

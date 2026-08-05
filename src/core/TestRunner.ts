@@ -1,4 +1,5 @@
 import { Page } from 'playwright';
+import { HeuristicResolver } from './HeuristicResolver.js';
 import { faker } from '@faker-js/faker';
 import { PlaywrightManager } from './PlaywrightManager.js';
 import { BrainService } from './BrainService.js';
@@ -37,7 +38,7 @@ export class TestRunner {
     this.scenarioContext.clear();
     this.cache.setScenario(scenarioName);
 
-    const page = await this.playwrightManager.startNewContext();
+    let page = await this.playwrightManager.startNewContext();
     const executedSteps: Step[] = [];
     let scenarioSuccess = true;
 
@@ -56,6 +57,15 @@ export class TestRunner {
             name: stepRaw.name || stepRaw.Name || stepRaw.action || stepRaw.Action || 'Step',
             action: stepRaw.action || stepRaw.Action || stepRaw.name || stepRaw.Name || ''
           };
+        }
+
+        // Always resolve the freshest active page before each step (handles SSO/redirects that open new pages)
+        page = await this.playwrightManager.getActivePage(page);
+
+        if (this.playwrightManager.isBrowserOrPageClosed(page)) {
+          console.error(`\n🛑 [ABORT] Browser window or page was closed. Halting remaining scenario execution.`);
+          scenarioSuccess = false;
+          break;
         }
 
         const stepResult = await this.executeStep(page, scenario, stepObj, stepIndex++);
@@ -122,12 +132,22 @@ export class TestRunner {
           if (action) {
             isFromCache = true;
             console.log(`   ⚡ [SMART CACHE HIT] Using cached selector for step`);
+          } else {
+            const heuristicAction = HeuristicResolver.resolve(actionText);
+            if (heuristicAction) {
+              action = heuristicAction;
+              console.log(`   ⚡ [LOCAL HEURISTIC MATCH] Resolved step intent locally without AI`);
+            }
           }
         }
 
         let screenshotBuffer: Buffer | undefined;
 
         if (!action) {
+          if (this.playwrightManager.isBrowserOrPageClosed(page)) {
+            throw new Error('Target page, context or browser has been closed.');
+          }
+
           console.log(`   🧠 Thinking with Gemini 2.5 (Attempt ${attempt + 1})...`);
           
           try {
@@ -170,6 +190,16 @@ export class TestRunner {
           );
         }
 
+        if (action) {
+          if (rawCheck.includes('random role') && action.actionType.toLowerCase() === 'type') {
+            action.value = '{{GEN_ROLE}}';
+          } else if ((rawCheck.includes('random name') || rawCheck.includes('random username')) && action.actionType.toLowerCase() === 'type') {
+            action.value = '{{GEN_NAME}}';
+          } else if (rawCheck.includes('random email') && action.actionType.toLowerCase() === 'type') {
+            action.value = '{{GEN_EMAIL}}';
+          }
+        }
+
         await this.performPlaywrightAction(page, action);
 
         // Save to cache ONLY AFTER action successfully executes and passes on page
@@ -188,6 +218,30 @@ export class TestRunner {
       } catch (err: any) {
         lastError = err.message;
         console.warn(`   ⚠️ [ATTEMPT ${attempt + 1} FAILED] ${err.message}`);
+
+        if (err.message?.includes('QuotaExhaustedError')) {
+          console.error(`   🛑 [QUOTA EXHAUSTED] All Gemini API keys are rate limited (429). Halting step retries.`);
+          step.status = 'Failed';
+          step.errorMessage = err.message;
+          step.endTime = new Date();
+          step.durationMs = step.endTime.getTime() - step.startTime.getTime();
+          return step;
+        }
+
+        const isClosedError =
+          err.message?.includes('closed') ||
+          err.message?.includes('Target page') ||
+          err.message?.includes('context') ||
+          this.playwrightManager.isBrowserOrPageClosed(page);
+
+        if (isClosedError) {
+          console.error(`   🛑 [ABORT STEP] Target browser page was closed. Halting step retries and AI calls.`);
+          step.status = 'Failed';
+          step.errorMessage = `Browser or page closed: ${err.message}`;
+          step.endTime = new Date();
+          step.durationMs = step.endTime.getTime() - step.startTime.getTime();
+          return step;
+        }
 
         if (attempt < maxAttempts - 1) {
           const cacheKey = this.cache.generateKey(actionText, page.url(), stepIndex);
@@ -248,21 +302,22 @@ export class TestRunner {
   }
 
   private async performPlaywrightAction(page: Page, action: PlaywrightAction): Promise<void> {
+    const resolvedSelector = this.resolveDynamicData(action.selector || '');
     const resolvedValue = this.resolveDynamicData(action.value || '');
     const actionType = action.actionType.toLowerCase();
 
     if (actionType === 'navigate') {
-      const targetUrl = resolvedValue || action.selector || '/';
+      const targetUrl = resolvedValue || resolvedSelector || '/';
       await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
       await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
       return;
     }
 
-    if (!action.selector) {
+    if (!resolvedSelector) {
       throw new Error(`Action type '${actionType}' requires a selector.`);
     }
 
-    const locator = this.playwrightManager.findSmartLocator(page, action.selector);
+    const locator = this.playwrightManager.findSmartLocator(page, resolvedSelector);
 
     // Generalize Toast & Progress Loader Cleanup before ANY element interaction (click, type, verify, hover, select)
     await this.dismissToastsAndWaitLoaders(page);
@@ -292,24 +347,84 @@ export class TestRunner {
           }
         }
 
-        try {
-          await locator.first().click({ timeout: 15000 });
-        } catch {
-          // If click is blocked or obscured by an overlay, force click or dispatch event directly
-          await locator.first().click({ force: true, timeout: 8000 });
+        // Smart Context Menu Handler: Re-open row ellipsis menu if popup menu closed before clicking action (e.g. 'Detail', 'Delete', 'Edit')
+        const isMenuItemClick = action.selector?.toLowerCase().includes('detail') || action.selector?.toLowerCase().includes('delete') || action.selector?.toLowerCase().includes('edit') || action.semanticRole === 'menuitem';
+        if (isMenuItemClick) {
+          const menuOpen = await page.locator('.p-tieredmenu, .p-menu, .p-contextmenu, [role="menu"]').first().isVisible({ timeout: 500 }).catch(() => false);
+          if (!menuOpen) {
+            const currentRole = this.scenarioContext.get('GEN_ROLE');
+            if (currentRole) {
+              const ellipsisBtn = this.playwrightManager.findSmartLocator(page, `role=row[name*="${currentRole}"] >> button`);
+              if (await ellipsisBtn.first().isVisible({ timeout: 1500 }).catch(() => false)) {
+                await ellipsisBtn.first().click({ force: true }).catch(() => {});
+                await page.waitForTimeout(600);
+              }
+            }
+          }
         }
 
-        // Post-login redirect handler: If clicked a login/signin button, wait for page to redirect away from /login
-        if (action.selector.toLowerCase().includes('sign in') || action.selector.toLowerCase().includes('login')) {
-          console.log(`   ⏳ Post-login redirect detected. Waiting for URL navigation...`);
-          await page.waitForURL(url => !url.pathname.includes('/auth/login') && !url.pathname.includes('/login'), { timeout: 10000 }).catch(() => {});
-          await page.waitForLoadState('domcontentloaded').catch(() => {});
+        const isSwitchClick =
+          action.semanticRole === 'switch' ||
+          action.selector?.toLowerCase().includes('switch') ||
+          action.description?.toLowerCase().includes('switch');
+
+        if (isSwitchClick) {
+          await locator.first().click({ force: true, timeout: 15000 });
+          await page.waitForTimeout(500);
         } else {
-          await page.waitForTimeout(1500);
+          await locator.first().click({ timeout: 15000 });
+        }
+
+        // Post-Detail Click Handler: Wait for async Role Details modal API data hydration
+        if (isMenuItemClick && (resolvedSelector.toLowerCase().includes('detail') || action.description?.toLowerCase().includes('detail'))) {
+          console.log(`   ⏳ Role Details modal opened. Waiting for async selection summary hydration...`);
+          await page.waitForTimeout(2500);
+        }
+
+        // Post-login redirect handler: If clicked a login/signin button, wait for full auth redirect chain to complete
+        const isLoginClick =
+          resolvedSelector.toLowerCase().includes('sign in') ||
+          resolvedSelector.toLowerCase().includes('login') ||
+          action.description?.toLowerCase().includes('sign in') ||
+          action.description?.toLowerCase().includes('log in') ||
+          action.semanticName?.toLowerCase().includes('sign in');
+
+        if (isLoginClick) {
+          console.log(`   ⏳ Post-login redirect detected. Waiting for URL navigation...`);
+          // Wait for redirect away from login page (up to 20s for SSO chains)
+          await page.waitForURL(
+            url => !url.pathname.includes('/auth/login') && !url.pathname.includes('/login'),
+            { timeout: 20000 }
+          ).catch(() => {});
+          // Wait for full page load including SSO redirects (networkidle = no requests for 500ms)
+          await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
+          await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+        } else {
+          // Post-save/submit: if a modal/dialog was open, wait for it to close
+          const isSaveOrSubmit =
+            action.semanticName?.toLowerCase().match(/^(save|submit|confirm|create|add|update|ok|yes)$/) ||
+            action.description?.toLowerCase().includes('save') ||
+            action.description?.toLowerCase().includes('submit');
+
+          if (isSaveOrSubmit) {
+            // Wait for any open dialog/modal to disappear (up to 5s)
+            const dialog = page.locator('[role="dialog"], .p-dialog, .p-sidebar, mat-dialog-container, .modal.show');
+            const dialogVisible = await dialog.first().isVisible({ timeout: 800 }).catch(() => false);
+            if (dialogVisible) {
+              console.log(`   ⏳ Waiting for dialog to close after save...`);
+              await dialog.first().waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+            }
+            // Also wait for network to settle after save (API call)
+            await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+          } else {
+            await page.waitForTimeout(500);
+          }
         }
         break;
 
       case 'type':
+        // Ensure the element is visible and editable before attempting fill
+        await locator.first().waitFor({ state: 'visible', timeout: 10000 });
         await locator.first().fill(resolvedValue, { timeout: 10000 });
         break;
 
@@ -327,23 +442,82 @@ export class TestRunner {
 
       case 'verify':
         const targetText = resolvedValue || action.description || '';
-        if (!action.selector || ['document', 'body', 'title', 'head'].includes(action.selector.toLowerCase())) {
-          // 1. Fast & Reliable: Auto-wait for REALLY VISIBLE / RENDERED text using Playwright's native DOM mutation observer
-          const isVisibleText = await page.getByText(targetText, { exact: false }).first()
-            .waitFor({ state: 'visible', timeout: 8000 })
-            .then(() => true)
+        const descLower = (action.description || '').toLowerCase();
+        const isAbsenceCheck =
+          descLower.includes('delete') ||
+          descLower.includes('not appear') ||
+          descLower.includes('no longer') ||
+          descLower.includes('removed') ||
+          descLower.includes('not present') ||
+          descLower.includes('disappear') ||
+          descLower.includes('absent');
+
+        if (isAbsenceCheck && targetText) {
+          // Verify that the element/text is NOT visible on the page (deletion confirmation)
+          await page.waitForTimeout(1500); // Give Angular/PrimeNG table time to re-render
+          const isStillVisible = await page.getByText(targetText, { exact: false }).first()
+            .isVisible({ timeout: 2000 })
             .catch(() => false);
-          if (isVisibleText) return;
 
-          // 2. Cheap Fallback: Single title check (no loop)
-          const pageTitle = await page.title().catch(() => '');
-          if (pageTitle.toLowerCase().includes(targetText.toLowerCase())) return;
+          if (!isStillVisible) {
+            console.log(`   ✅ [VERIFY ABSENCE] Verified that '${targetText}' is successfully deleted/absent from page.`);
+            return;
+          }
 
-          // 3. Last Resort: Single DOM HTML serialization check (only once, never polled)
-          const pageContent = await page.content().catch(() => '');
-          if (pageContent.toLowerCase().includes(targetText.toLowerCase())) return;
+          // Double check after 2s for slow network/table refresh
+          await page.waitForTimeout(2000);
+          const visibleAfterWait = await page.getByText(targetText, { exact: false }).first()
+            .isVisible({ timeout: 1000 })
+            .catch(() => false);
 
-          throw new Error(`Verification failed. Page does not contain visible text or title '${targetText}'.`);
+          if (!visibleAfterWait) {
+            console.log(`   ✅ [VERIFY ABSENCE] Verified that '${targetText}' is successfully deleted/absent from page.`);
+            return;
+          }
+
+          throw new Error(`Verification failed. Text '${targetText}' is still present on the page after deletion.`);
+        }
+
+        if (!action.selector || ['document', 'body', 'title', 'head'].includes(action.selector.toLowerCase())) {
+          // Wait 1.5s for async dialog/drawer hydration (e.g. Selection Summary populating via API)
+          await page.waitForTimeout(1500);
+
+          // Build permission code variants (e.g. Action_UserCreate -> ['Action_UserCreate', 'UserCreate', 'User Create'])
+          const searchVariants: string[] = [targetText];
+          if (targetText.startsWith('Action_')) {
+            const stripped = targetText.replace(/^Action_/, '');
+            searchVariants.push(stripped); // 'UserCreate'
+            searchVariants.push(stripped.replace(/([a-z])([A-Z])/g, '$1 $2')); // 'User Create'
+          }
+
+          for (const variant of searchVariants) {
+            const isVisibleText = await page.getByText(variant, { exact: false }).first()
+              .waitFor({ state: 'visible', timeout: 3000 })
+              .then(() => true)
+              .catch(() => false);
+            if (isVisibleText) {
+              console.log(`   ✅ [VERIFY MATCH] Verified visible right '${variant}' for step '${targetText}'.`);
+              return;
+            }
+
+            let pageContent = await page.content().catch(() => '');
+            if (pageContent.toLowerCase().includes(variant.toLowerCase())) {
+              console.log(`   ✅ [VERIFY MATCH] Found right '${variant}' in DOM for step '${targetText}'.`);
+              return;
+            }
+          }
+
+          // Retry once more after 2s for slow API responses
+          await page.waitForTimeout(2000);
+          let retryContent = await page.content().catch(() => '');
+          for (const variant of searchVariants) {
+            if (retryContent.toLowerCase().includes(variant.toLowerCase())) {
+              console.log(`   ✅ [VERIFY MATCH RETRY] Found right '${variant}' in DOM for step '${targetText}'.`);
+              return;
+            }
+          }
+
+          throw new Error(`Verification failed. Page does not contain visible text matching '${targetText}' (checked variants: ${searchVariants.join(', ')}).`);
         } else {
           try {
             // Specific element selector branch: Auto-waits up to 10s for element to hydrate & become visible

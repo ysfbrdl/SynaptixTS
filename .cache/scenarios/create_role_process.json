@@ -1,0 +1,220 @@
+{
+  "5_t-operator.gdaoperator.aero/dashboard_click the 'access management' button in sidebar": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=button[name=\"Access Management\"]",
+      "semanticName": "Access Management",
+      "semanticRole": "button",
+      "description": "Click 'Access Management' button"
+    },
+    "createdAt": "2026-08-05T14:25:01.613Z",
+    "urlPattern": "t-operator.gdaoperator.aero/dashboard",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/dashboard"
+  },
+  "6_t-operator.gdaoperator.aero/dashboard_click the 'roles' button in sidebar": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=button[name=\"Roles\"]",
+      "semanticName": "Roles",
+      "semanticRole": "button",
+      "description": "Click 'Roles' button"
+    },
+    "createdAt": "2026-08-05T14:25:02.399Z",
+    "urlPattern": "t-operator.gdaoperator.aero/dashboard",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/dashboard"
+  },
+  "7_t-operator.gdaoperator.aero/access/role_click the 'create role' button": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=button[name=\"Create Role\"]",
+      "semanticName": "Create Role",
+      "semanticRole": "button",
+      "description": "Click 'Create Role' button"
+    },
+    "createdAt": "2026-08-05T14:25:03.101Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "8_t-operator.gdaoperator.aero/access/role_type a random role into the role name input": {
+    "action": {
+      "actionType": "type",
+      "selector": "role=textbox[name=\"Role Name*\"]",
+      "semanticName": "Role Name*",
+      "semanticRole": "textbox",
+      "value": "{{GEN_ROLE}}",
+      "description": "Type random role name into input"
+    },
+    "createdAt": "2026-08-05T14:25:03.234Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "9_t-operator.gdaoperator.aero/access/role_type 'test role description' into the role description input": {
+    "action": {
+      "actionType": "type",
+      "selector": "role=textbox[name=\"Role Description*\"]",
+      "semanticName": "Role Description*",
+      "semanticRole": "textbox",
+      "value": "Test Role Description",
+      "description": "Type 'Test Role Description' into description input"
+    },
+    "createdAt": "2026-08-05T14:25:03.369Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "10_t-operator.gdaoperator.aero/access/role_set the 'access management' toggle switch to on below the 'permissions' section.": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=switch[name*=\"Access Management\"]",
+      "semanticName": "Access Management",
+      "semanticRole": "switch",
+      "description": "Click toggle switch for 'Access Management'"
+    },
+    "createdAt": "2026-08-05T14:25:04.516Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "11_t-operator.gdaoperator.aero/access/role_set the 'account management' toggle switch to on below the 'access management' permission.": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=switch[name*=\"Account Management\"]",
+      "semanticName": "Account Management",
+      "semanticRole": "switch",
+      "description": "Click toggle switch for 'Account Management'"
+    },
+    "createdAt": "2026-08-05T14:25:05.664Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "12_t-operator.gdaoperator.aero/access/role_click 'save' button": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=button[name=\"Save\"]",
+      "semanticName": "Save",
+      "semanticRole": "button",
+      "description": "Click 'Save' button"
+    },
+    "createdAt": "2026-08-05T14:25:06.173Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "13_t-operator.gdaoperator.aero/access/role_verify that the new role is created": {
+    "action": {
+      "actionType": "verify",
+      "selector": "body",
+      "value": "{{GEN_ROLE}}",
+      "description": "Verify that '{{GEN_ROLE}}' is visible"
+    },
+    "createdAt": "2026-08-05T14:25:07.690Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "14_t-operator.gdaoperator.aero/access/role_click ellipsis button in the row of the created role": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=row[name*=\"{{GEN_ROLE}}\"] >> button",
+      "semanticRole": "button",
+      "description": "Click ellipsis button in row for '{{GEN_ROLE}}'"
+    },
+    "createdAt": "2026-08-05T14:25:08.384Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 4,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "15_t-operator.gdaoperator.aero/access/role_click 'detail' button": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=menuitem[name=\"Detail\"]",
+      "semanticName": "Detail",
+      "semanticRole": "menuitem",
+      "description": "Click 'Detail' option in menu"
+    },
+    "createdAt": "2026-08-05T14:25:11.617Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "16_t-operator.gdaoperator.aero/access/role_verify that 'action_usercreate' right exists in the selection summary list": {
+    "action": {
+      "actionType": "verify",
+      "selector": "body",
+      "value": "Action_UserCreate",
+      "description": "Verify that 'Action_UserCreate' is visible"
+    },
+    "createdAt": "2026-08-05T14:25:13.139Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "17_t-operator.gdaoperator.aero/access/role_verify that 'action_accountcreate' right exists in the selection summary list": {
+    "action": {
+      "actionType": "verify",
+      "selector": "body",
+      "value": "Action_AccountCreate",
+      "description": "Verify that 'Action_AccountCreate' is visible"
+    },
+    "createdAt": "2026-08-05T14:25:14.659Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "18_t-operator.gdaoperator.aero/access/role_click 'cancel' button": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=button[name=\"Cancel\"]",
+      "semanticName": "Cancel",
+      "semanticRole": "button",
+      "description": "Click 'Cancel' button"
+    },
+    "createdAt": "2026-08-05T14:25:15.332Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "20_t-operator.gdaoperator.aero/access/role_click 'delete' button": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=menuitem[name=\"Delete\"]",
+      "semanticName": "Delete",
+      "semanticRole": "menuitem",
+      "description": "Click 'Delete' option in menu"
+    },
+    "createdAt": "2026-08-05T14:25:16.714Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "21_t-operator.gdaoperator.aero/access/role_click 'delete' button in the confirmation popup": {
+    "action": {
+      "actionType": "click",
+      "selector": "role=button[name=\"Delete\"]",
+      "semanticName": "Delete",
+      "semanticRole": "button",
+      "description": "Click 'Delete' button"
+    },
+    "createdAt": "2026-08-05T14:25:18.132Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  },
+  "22_t-operator.gdaoperator.aero/access/role_verify that the role is deleted from the list": {
+    "action": {
+      "actionType": "verify",
+      "selector": "body",
+      "value": "{{GEN_ROLE}}",
+      "description": "Verify that deleted item no longer appears"
+    },
+    "createdAt": "2026-08-05T14:25:19.657Z",
+    "urlPattern": "t-operator.gdaoperator.aero/access/role",
+    "hitCount": 2,
+    "domSignature": "Optimus|https://t-operator.gdaoperator.aero/access/role"
+  }
+}

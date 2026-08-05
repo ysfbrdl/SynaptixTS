@@ -36,9 +36,15 @@ Rules:
 1. Selectors:
    - For "type" actions: ALWAYS target the actual <input> or <textarea> element. For username/email inputs use 'input[type="email"], input[name*="email"], input[name*="user"], input[type="text"]'. For password inputs ALWAYS use 'input[type="password"], input[name*="pass"]'. NEVER use generic 'role=textbox >> nth=X' or index-based matchers.
    - For "click" actions: Inspect full ARIA accessibility tree and HTML attributes. Prefer explicit ARIA roles/labels (e.g. role=button[name="..."], role=button[name*="Items per page: X"], [title="..."], [aria-label="..."], [aria-description="..."]).
-   - For pagination controls, rows per page, or icon buttons: Check for full ARIA button labels like 'role=button[name="Items per page: 20"]' or 'role=button[description="..."]'. If the button is an icon without text, prefer '[title*="..."]', '[aria-label*="..."]', or positional selectors like 'header button >> nth=1'.
+   - For toggle switches, checkboxes, or switches below titles: Target PrimeNG/Angular switches using valid Playwright selectors like 'p-inputswitch:has-text("...")', 'p-toggleswitch:has-text("...")', 'div:has-text("...") >> role=switch', 'div:has-text("...") >> input', or 'role=switch[name*="..."]'.
+   - Playwright Selector Syntax: ALWAYS use '>>' for locator chaining (e.g. 'parent >> child'). NEVER use non-standard syntax like '<<', 'prev=', 'switch:has(+', or invalid CSS pseudo-classes.
 2. Keep actionType to one of: "click", "type", "select", "hover", "press", "navigate", "verify", "wait".
-3. Return strict JSON according to the schema.
+3. Dynamic Variables & Placeholders:
+   - If user step asks to type a random role name, use value: "{{GEN_ROLE}}".
+   - If user step asks to type a random user name or name, use value: "{{GEN_NAME}}".
+   - If user step asks to type a random email, use value: "{{GEN_EMAIL}}".
+   - When referring to a newly created role, item, or user in a table row (e.g. "created role"), use placeholder in selector: 'role=row[name*="{{GEN_ROLE}}"] >> button' or 'tr:has-text("{{GEN_ROLE}}") button'. DO NOT hardcode a specific generated string.
+4. Return strict JSON according to the schema.
 `;
 
   public async decideAction(
@@ -72,6 +78,7 @@ Rules:
     }
 
     let lastErr: any = null;
+    let rateLimitCount = 0;
 
     for (const modelName of this.fallbackModels) {
       for (let keyAttempt = 0; keyAttempt < Math.max(1, this.apiKeys.length); keyAttempt++) {
@@ -123,8 +130,16 @@ Rules:
               const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED');
 
               if (isRateLimit) {
-                console.warn(`   ⚠️ Rate limit hit on Key #${this.currentKeyIndex + 1}. Instant rotation to next key...`);
+                rateLimitCount++;
+                console.warn(`   ⚠️ Rate limit hit on Key #${this.currentKeyIndex + 1}. Fast-rotating to next key...`);
                 this.rotateKey();
+                
+                // If every key in our pool has hit rate limits, throw QuotaExhaustedError to short-circuit retry loops
+                if (rateLimitCount >= this.apiKeys.length) {
+                  throw new Error('QuotaExhaustedError: All Gemini API keys are rate limited (429). Fast failing.');
+                }
+                
+                await new Promise(res => setTimeout(res, 500));
                 break;
               } else if (retry === 0) {
                 console.warn(`   🌐 Transient API network issue / timeout (${errMsg}). Retrying in 1s on same key...`);
@@ -134,6 +149,9 @@ Rules:
           }
         } catch (outerErr: any) {
           lastErr = outerErr;
+          if (outerErr.message?.includes('QuotaExhaustedError')) {
+            throw outerErr;
+          }
         }
       }
     }
