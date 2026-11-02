@@ -1,0 +1,25 @@
+name: SauceDemo - Master Smoke Test Suite
+description: High-level comprehensive smoke validation for SauceDemo
+tags:
+  - smoke
+  - master
+steps:
+  - Go to https://www.saucedemo.com/
+  - Type 'standard_user' into the username input
+  - Type 'secret_sauce' into the password input
+  - Click the login button
+  - Verify that 'Products' is visible
+  - Click 'Add to cart' button for 'Sauce Labs Bolt T-Shirt'
+  - Click the shopping cart icon
+  - Verify that 'Sauce Labs Bolt T-Shirt' is visible
+  - Click the 'Checkout' button
+  - Type 'John' into the first name input
+  - Type 'Doe' into the last name input
+  - Type '12345' into the postal code input
+  - Click the 'Continue' button
+  - Click the 'Finish' button
+  - Verify that 'Thank you for your order!' is visible
+  - Click burger menu button
+  - Click Logout link
+  - Verify that 'login-button' is visible
+

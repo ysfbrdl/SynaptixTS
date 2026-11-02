@@ -159,7 +159,7 @@ export class SmartCache {
   private isSharedStep(stepAction: string, rawUrl: string): boolean {
     const actionLower = stepAction.toLowerCase();
     const sharedKeywords = [
-      'login', 'log in', 'giriş', 'sign in', 'logout', 'log out', 'çıkış',
+      'login', 'log in', 'signin', 'sign in', 'logout', 'log out', 'signout',
       'authenticate', 'username input', 'password input',
       'go to', 'navigate', 'open', 'http://', 'https://'
     ];

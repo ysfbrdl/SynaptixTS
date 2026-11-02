@@ -1,47 +1,64 @@
 # 💎 SynaptixTS — AI-Native E2E Test Automation Framework
 
-**SynaptixTS**, Playwright ve Google Gemini 2.5 Yapay Zeka motorunu birleştiren, doğal dilde yazılmış test senaryolarını sıfır bakım maliyetiyle icra eden **Next-Gen E2E Test Otomasyon Çerçevesidir**.
+**SynaptixTS** is a next-generation E2E test automation framework combining **Playwright** and **Google Gemini** to execute natural language YAML test scenarios with zero maintenance overhead.
+
+This project is fully configured and optimized to run end-to-end tests against the [SauceDemo (Swag Labs)](https://www.saucedemo.com/) e-commerce web application.
 
 ---
 
-## 🌟 Öne Çıkan Özellikler (Key Features)
+## 🌟 Key Features
 
-- 🧠 **Doğal Dil Senaryoları (YAML):** Testlerinizi kod yazmadan, tamamen günlük konuşma dilinde (Türkçe/İngilizce) YAML dosyaları olarak tanımlayın.
-- ⚡ **Katmanlı Akıllı Önbellek (Layered Smart Cache):** 
-  - `shared_cache.json`: Giriş/oturum açma gibi ortak adımları merkezi olarak saklar.
-  - `.cache/scenarios/${scenario_name}.json`: Senaryoya özel adımları önbellekler.
-  - Başarılı adımlar sonraki koşumlarda **~100ms** hızında yapay zekaya hiç gitmeden çalışır.
-- 🔄 **Kendi Kendini Onarma (Self-Healing):** Arayüz (UI) değiştiğinde veya buton isimleri güncellendiğinde sistem eski kaydı önbellekten siler, Gemini 2.5 ile canlı DOM ve ekran görüntüsünü analiz ederek yeni seçiciyi bulur ve testi kırılmaktan kurtarır.
-- 🛡️ **Doğrulanmış Önbellek Kaydı (Post-Execution Caching):** Yapay zeka kararları yalnızca ve yalnızca canlı sayfada icra edilip **PASSED** olduktan sonra önbelleğe kaydedilir. Hatalı veya yarım kalmış adımlar önbelleğe yazılmaz.
-- 🚀 **Direkt Yönlendirme Hızlı Yolu (Direct Navigation Fast-Path):** `Go to...` veya `Navigate to...` adımları yapay zekaya sormadan **0.1 saniyede** doğrudan Playwright `page.goto()` ile icra edilir.
-- 🧹 **Toast Mesajı & Yükleme Süpürücü (Toast & Loader Auto-Clearing):** Ekranı ve butonların önünü kapatan yüzen bildirim mesajları (`.p-toast`, `.ngx-toastr`, `mat-snack-bar`) otomatik olarak DOM'dan kaldırılır, sayfa yükleme barları dinamik beklenir.
-- 🎯 **Kapsamlı Bileşik Seçici (Composite Fallback Locators):** `role=button`, `name`, `description`, `title`, `aria-label` ve metin eşleşmelerini `.or()` zinciriyle tek seferde paralel kontrol eder.
-- 📊 **Zengin HTML Raporlama:** Her koşum sonrasında adım detaylarını, süreleri ve hata anı ekran görüntülerini içeren HTML raporu üretir.
+- 🧠 **Natural Language Scenarios (YAML):** Write readable, intent-based test scenarios in plain English without writing test automation boilerplate.
+- ⚡ **Zero-API Local Heuristic Engine:** Common web interactions (login, cart actions, checkout forms, sorting, burger menu) resolve deterministically in **<5ms** with zero LLM API cost.
+- 🎯 **Smart Locator Engine (`data-test` Aware):** Prioritizes reliable identifiers such as `data-test` attributes, semantic ARIA roles, and standard inputs with built-in composite fallback matching.
+- 🔄 **Self-Healing via Gemini:** When a UI structure updates or an unmapped element appears, the framework captures the live DOM and screenshot, prompting Gemini to resolve the optimal locator and keep the build green.
+- ⚡ **Layered Smart Cache:**
+  - `shared_cache.json`: Stores common reusable steps across all scenarios (e.g., login flows).
+  - `.cache/scenarios/${scenario_name}.json`: Caches scenario-specific locator resolutions.
+  - Cached steps execute in **~50ms** on subsequent runs without touching external APIs.
+- 📊 **Rich Single-File HTML Reporting:** Generates a unified, interactive HTML report containing step statuses, execution durations, pass/fail metrics, and step failure screenshots.
 
 ---
 
-## 📁 Proje Yapısı (Project Architecture)
+## 🤖 Supported AI Models
+
+SynaptixTS uses a resilient fallback chain powered by Google Gemini:
+
+1. **Primary Model: `gemini-3.8-flash`** (High speed, multimodal DOM + screenshot analysis, generous rate limits)
+2. **Fallback Model: `gemini-3.1-pro-preview`** (Advanced reasoning for intricate DOM trees and complex UI states)
+3. **Legacy Fallbacks: `gemini-2.5-flash`, `gemini-2.5-pro`**
+
+---
+
+## 📁 Project Architecture
 
 ```text
 SynaptixTS/
-├── .cache/                     # Akıllı önbellek dizini
-│   ├── shared_cache.json       # Ortak oturum/giriş adımları önbelleği
-│   └── scenarios/              # Senaryo bazlı önbellek dosyaları (.json)
-├── reports/                    # Test koşum HTML raporları ve ekran görüntüleri
-├── scenarios/                  # YAML formatındaki doğal dil test senaryoları
-│   ├── bus_policy_verification.yaml
-│   └── optimus_dashboard_details.yaml
+├── .cache/                     # Smart cache directory
+│   ├── shared_cache.json       # Common authentication/navigation cache
+│   └── scenarios/              # Scenario-specific step caches (.json)
+├── reports/                    # HTML reports & failure screenshots
+│   └── screenshots/            # Automated full-page error captures
+├── scenarios/                  # Natural language YAML test suites
+│   ├── 01_login_success.yaml
+│   ├── 02_login_locked_out.yaml
+│   ├── 03_product_sorting.yaml
+│   ├── 04_cart_operations.yaml
+│   ├── 05_checkout_e2e.yaml
+│   └── 06_saucedemo_smoke.yaml
 ├── src/
 │   ├── core/
-│   │   ├── BrainService.ts     # Gemini 2.5 Flash / Pro entegrasyonu & key rotasyonu
-│   │   ├── DomTrimmer.ts       # Erişilebilirlik (ARIA Snapshot) DOM sıkıştırma
-│   │   ├── HtmlReportService.ts# HTML Rapor oluşturucu servis
-│   │   ├── PlaywrightManager.ts# Tarayıcı yönetimi & akıllı seçici (Smart Locator) motoru
-│   │   ├── SmartCache.ts       # Katmanlı hybrid önbellek yönetimi
-│   │   └── TestRunner.ts       # Test yürütücü, self-healing & dinamik veri motoru
-│   ├── types/                  # TypeScript tip tanımlamaları
-│   └── index.ts                # Çerçeve ana giriş noktası (CLI Entrypoint)
-├── .env                        # Gemini API Anahtarları ve ortam değişkenleri
+│   │   ├── BrainService.ts     # Gemini API integration & key rotation
+│   │   ├── DomTrimmer.ts       # DOM simplification & ARIA tree snapshotting
+│   │   ├── HeuristicResolver.ts# Sub-millisecond deterministic intent matcher
+│   │   ├── HtmlReportService.ts# Unified HTML report generator
+│   │   ├── PlaywrightManager.ts# Browser context & smart locator engine
+│   │   ├── SmartCache.ts       # Multi-layer hybrid cache manager
+│   │   └── TestRunner.ts       # Step execution, self-healing & dynamic data engine
+│   ├── types/                  # TypeScript interface definitions
+│   └── index.ts                # Command-line interface entry point
+├── .env.example                # Sample environment variables
+├── .env                        # Local API keys and configurations
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -49,43 +66,71 @@ SynaptixTS/
 
 ---
 
-## 🚀 Kurulum (Setup)
+## 🚀 Getting Started
 
-### 1. Bağımlılıkları Yükleyin
+### 1. Install Dependencies
 
 ```powershell
 npm install
 ```
 
-### 2. Ortam Değişkenlerini (`.env`) Ayarlayın
+### 2. Configure Environment (`.env`)
 
-Kök dizinde bir `.env` dosyası oluşturun ve Gemini API anahtarınızı (veya çoklu rotasyon anahtarlarınızı) ekleyin:
+Create a `.env` file in the project root (you can copy `.env.example`):
 
 ```env
-GEMINI_API_KEY=AIzaSyYourPrimaryGeminiApiKeyHere
-GEMINI_API_KEY_2=AIzaSyYourSecondaryGeminiApiKeyHere
+# Google Gemini API Key(s) (supports comma-separated rotation keys)
+GEMINI_API_KEY=AIzaSyYourGeminiApiKeyHere
+
+# Environment Configuration
+BASE_URL=https://www.saucedemo.com/
 HEADLESS=false
+BROWSER_TYPE=chromium
+SLOW_MO=100
+DEFAULT_TIMEOUT=15000
 ```
+
+> **Tip:** You can obtain a free API key in 30 seconds at [Google AI Studio](https://aistudio.google.com/).
 
 ---
 
-## 💻 Kullanım (Usage)
+## 💻 Running Tests
 
-### Bir Test Senaryosu Çalıştırma
-
-İstediğiniz bir YAML senaryosunu doğrudan `tsx` ile çalıştırabilirsiniz:
+### Standard NPM Commands
 
 ```powershell
-# Dashboard detay testi
-npx tsx src/index.ts scenarios/optimus_dashboard_details.yaml
+# Run default login test
+npm test
 
-# Bus Policy doğrulama testi
-npx tsx src/index.ts scenarios/bus_policy_verification.yaml
+# Run all scenarios in scenarios/
+npm run test:all
+
+# Run all scenarios tagged with @smoke
+npm run test:smoke
 ```
 
-### Projeyi Derleme (Build)
+### Running by Tag
 
-TypeScript kodlarını derlemek için:
+You can filter and run scenarios using any custom tag in two ways:
+
+#### Option A: Using NPM Script
+```powershell
+npm run test:tag -- checkout
+npm run test:tag -- login
+npm run test:tag -- negative
+npm run test:tag -- cart
+```
+
+#### Option B: Direct CLI Execution (Fastest)
+```powershell
+npx tsx src/index.ts checkout
+npx tsx src/index.ts negative
+npx tsx src/index.ts scenarios/05_checkout_e2e.yaml
+```
+
+### Building the Project
+
+Compile TypeScript into JavaScript:
 
 ```powershell
 npm run build
@@ -93,31 +138,64 @@ npm run build
 
 ---
 
-## 📝 Senaryo Yazımı (Writing Scenarios)
+## 📝 Writing Test Scenarios
 
-Senaryolar `scenarios/` klasöründe `.yaml` formatında tanımlanır:
+Scenarios are defined under the `scenarios/` directory in standard YAML format:
 
 ```yaml
-Name: Optimus Dashboard Detailed Functional Test
-Steps:
-  - Go to https://t-operator.gdaoperator.aero/
-  - Type 'yusuf.birdal@gozendigital.onmicrosoft.com' into the username input
-  - Type '*****' into the password input
+name: SauceDemo - Complete E2E Checkout Test
+description: Verify end-to-end shopping flow from product selection to order completion
+tags:
+  - smoke
+  - checkout
+steps:
+  - Go to https://www.saucedemo.com/
+  - Type 'standard_user' into the username input
+  - Type 'secret_sauce' into the password input
   - Click the login button
-  - Verify that the page contains the title 'Operational Dashboard'
-  - Click on the 'Aircraft Management' button
-  - Verify that the 'Aircraft List' submenu is visible
+  - Click 'Add to cart' button for 'Sauce Labs Backpack'
+  - Click the shopping cart icon
+  - Click the 'Checkout' button
+  - "Verify that 'Checkout: Your Information' is visible"
+  - Type a random first name into the first name input
+  - Type a random last name into the last name input
+  - Type a random zip into the postal code input
+  - Click the 'Continue' button
+  - "Verify that 'Checkout: Overview' is visible"
+  - Verify that 'Payment Information' is visible
+  - Click the 'Finish' button
+  - Verify that 'Thank you for your order!' is visible
+  - Click the 'Back Home' button
+  - Verify that 'Products' is visible
 ```
 
-### Dinamik Veri Üreticileri (Dynamic Data Generators)
-Senaryo adımlarında rastgele dinamik veriler kullanmak için aşağıdaki şablonları kullanabilirsiniz:
-- `{{GEN_NAME}}`: Rastgele isim üretir.
-- `{{GEN_EMAIL}}`: Rastgele e-posta adresi üretir.
-- `{{GEN_PHONE}}`: Rastgele telefon numarası üretir.
-- `{{GEN_ROLE}}`: Rastgele unvan üretir.
+### Dynamic Data Placeholders (Faker.js)
+
+You can generate randomized test data dynamically within any step text:
+- `{{GEN_FIRST_NAME}}`: Generates a random first name.
+- `{{GEN_LAST_NAME}}`: Generates a random last name.
+- `{{GEN_ZIP}}`: Generates a random postal/zip code.
+- `{{GEN_NAME}}`: Generates a random full name.
+- `{{GEN_EMAIL}}`: Generates a random valid email address.
+- `{{GEN_PHONE}}`: Generates a random phone number.
 
 ---
 
-## 📜 Lisans
+## 👥 SauceDemo Test Accounts
 
-Bu proje MIT lisansı ile lisanslanmıştır.
+SauceDemo provides pre-configured testing accounts with password `secret_sauce`:
+
+| Username | Purpose |
+| :--- | :--- |
+| `standard_user` | Regular user for standard end-to-end functional flows |
+| `locked_out_user` | Account for validating error handling and negative login assertions |
+| `problem_user` | User experiencing specific UI anomalies and image issues |
+| `performance_glitch_user` | User with simulated backend latency |
+| `error_user` | User encountering checkout errors |
+| `visual_user` | User with visual layout variations |
+
+---
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE).

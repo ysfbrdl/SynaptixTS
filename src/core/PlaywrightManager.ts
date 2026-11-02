@@ -13,7 +13,7 @@ export class PlaywrightManager {
       browserType: (process.env.BROWSER_TYPE as any) || 'chromium',
       slowMo: Number(process.env.SLOW_MO) || 100,
       defaultTimeout: Number(process.env.DEFAULT_TIMEOUT) || 15000,
-      baseUrl: process.env.BASE_URL || 'https://t-operator.gdaoperator.aero/',
+      baseUrl: process.env.BASE_URL || 'https://www.saucedemo.com/',
       ...settings
     };
   }
@@ -170,7 +170,7 @@ export class PlaywrightManager {
     }
 
     if (s.startsWith('role=')) {
-      const match = s.match(/role=([^\s\[]+)(?:\[(name|description)[\*\~\^\$]?="([^"]+)"\])?/);
+      const match = s.match(/role=([^\s\[]+)(?:\[(name|description)[\*\~\^\$]?="([^"]+)"(?:\s+[iI])?\])?/);
       if (match) {
         const role = match[1] as any;
         const val = match[3];
@@ -209,6 +209,9 @@ export class PlaywrightManager {
           return page.getByRole('button', { name: cleanVal })
             .or(page.getByRole('button', { name: val }))
             .or(page.locator(`button:has-text("${cleanVal}")`))
+            .or(page.locator(`input[type="submit"][value="${cleanVal}" i]`))
+            .or(page.locator(`input[type="button"][value="${cleanVal}" i]`))
+            .or(page.locator(`[data-test*="${cleanVal.toLowerCase().replace(/\s+/g, '-')}" i]`))
             .or(page.locator(`[role="button"]:has-text("${cleanVal}")`))
             .or(page.locator(`[aria-label="${cleanVal}" i]`))
             .or(page.locator(`[title="${cleanVal}" i]`));
@@ -222,6 +225,8 @@ export class PlaywrightManager {
             .or(page.getByLabel(val))
             .or(page.getByPlaceholder(cleanVal))
             .or(page.getByPlaceholder(val))
+            .or(page.locator(`[data-test*="${cleanVal.toLowerCase().replace(/\s+/g, '')}" i]`))
+            .or(page.locator(`[data-test*="${cleanVal.toLowerCase().replace(/\s+/g, '-')}" i]`))
             .or(page.locator(`input[name*="${cleanVal}" i], textarea[name*="${cleanVal}" i]`))
             .or(page.locator(`input[id*="${cleanVal}" i], textarea[id*="${cleanVal}" i]`))
             .or(page.locator(`input[aria-label*="${cleanVal}" i]`))
@@ -263,6 +268,11 @@ export class PlaywrightManager {
     if (s.startsWith('placeholder=')) {
       const phVal = s.substring(12).replace(/^["']|["']$/g, '');
       return page.getByPlaceholder(phVal);
+    }
+
+    if (s.startsWith('data-test=')) {
+      const dtVal = s.substring(10).replace(/^["']|["']$/g, '');
+      return page.locator(`[data-test="${dtVal}"]`);
     }
 
     // Default fallback to standard Playwright locator (CSS/XPath)

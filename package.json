@@ -7,9 +7,19 @@
   "scripts": {
     "build": "tsc",
     "start": "tsx src/index.ts",
-    "test": "tsx src/index.ts scenarios/demo.yaml"
+    "test": "tsx src/index.ts scenarios/01_login_success.yaml",
+    "test:all": "tsx src/index.ts --all",
+    "test:smoke": "tsx src/index.ts --tag=smoke",
+    "test:tag": "tsx src/index.ts --tag"
   },
-  "keywords": ["testing", "playwright", "ai", "gemini", "automation", "e2e"],
+  "keywords": [
+    "testing",
+    "playwright",
+    "ai",
+    "gemini",
+    "automation",
+    "e2e"
+  ],
   "author": "Yusuf Birdal",
   "license": "MIT",
   "dependencies": {

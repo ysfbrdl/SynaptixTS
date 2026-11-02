@@ -1,0 +1,20 @@
+name: SauceDemo - Cart Operations Test
+description: Verify adding and removing products updates the cart badge and cart contents
+tags:
+  - smoke
+  - cart
+steps:
+  - Go to https://www.saucedemo.com/
+  - Type 'standard_user' into the username input
+  - Type 'secret_sauce' into the password input
+  - Click the login button
+  - Click 'Add to cart' button for 'Sauce Labs Backpack'
+  - Click 'Add to cart' button for 'Sauce Labs Bike Light'
+  - Verify that '2' is visible
+  - Click the shopping cart icon
+  - Verify that 'Your Cart' is visible
+  - Verify that 'Sauce Labs Backpack' is visible
+  - Verify that 'Sauce Labs Bike Light' is visible
+  - Click 'Remove' button for 'Sauce Labs Bike Light'
+  - Verify that '1' is visible
+

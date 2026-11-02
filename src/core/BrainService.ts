@@ -5,7 +5,7 @@ import { DomTrimmer } from './DomTrimmer.js';
 export class BrainService {
   private apiKeys: string[] = [];
   private currentKeyIndex: number = 0;
-  private fallbackModels: string[] = ['gemini-2.5-flash', 'gemini-2.5-pro'];
+  private fallbackModels: string[] = ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-2.5-pro'];
 
   constructor(apiKey?: string) {
     const rawKeys = apiKey || process.env.GEMINI_API_KEY;
@@ -34,16 +34,18 @@ Your task is to resolve the exact Playwright action required to perform the step
 
 Rules:
 1. Selectors:
-   - For "type" actions: ALWAYS target the actual <input> or <textarea> element. For username/email inputs use 'input[type="email"], input[name*="email"], input[name*="user"], input[type="text"]'. For password inputs ALWAYS use 'input[type="password"], input[name*="pass"]'. NEVER use generic 'role=textbox >> nth=X' or index-based matchers.
-   - For "click" actions: Inspect full ARIA accessibility tree and HTML attributes. Prefer explicit ARIA roles/labels (e.g. role=button[name="..."], role=button[name*="Items per page: X"], [title="..."], [aria-label="..."], [aria-description="..."]).
-   - For toggle switches, checkboxes, or switches below titles: Target PrimeNG/Angular switches using valid Playwright selectors like 'p-inputswitch:has-text("...")', 'p-toggleswitch:has-text("...")', 'div:has-text("...") >> role=switch', 'div:has-text("...") >> input', or 'role=switch[name*="..."]'.
-   - Playwright Selector Syntax: ALWAYS use '>>' for locator chaining (e.g. 'parent >> child'). NEVER use non-standard syntax like '<<', 'prev=', 'switch:has(+', or invalid CSS pseudo-classes.
+   - Prioritize high-reliability identifiers: '[data-test="..."]', '#id', 'input[name="..."]', 'placeholder="..."', and semantic role locators.
+   - For "type" actions: ALWAYS target the actual <input> or <textarea> element. For username use '[data-test="username"], #user-name, input[name*="user"], input[type="text"]'. For password use '[data-test="password"], #password, input[type="password"]'. NEVER use generic 'role=textbox >> nth=X' or index-based matchers.
+   - For "click" actions: Inspect ARIA accessibility tree and HTML attributes. Support <button>, <a>, and <input type="submit"> / <input type="button"> (e.g. '[data-test="..."]', role=button[name="..."], input[value="..."]').
+   - Playwright Selector Syntax: ALWAYS use '>>' for locator chaining (e.g. 'parent >> child'). NEVER use non-standard syntax like '<<', 'prev=', or invalid CSS pseudo-classes.
 2. Keep actionType to one of: "click", "type", "select", "hover", "press", "navigate", "verify", "wait".
 3. Dynamic Variables & Placeholders:
-   - If user step asks to type a random role name, use value: "{{GEN_ROLE}}".
-   - If user step asks to type a random user name or name, use value: "{{GEN_NAME}}".
-   - If user step asks to type a random email, use value: "{{GEN_EMAIL}}".
-   - When referring to a newly created role, item, or user in a table row (e.g. "created role"), use placeholder in selector: 'role=row[name*="{{GEN_ROLE}}"] >> button' or 'tr:has-text("{{GEN_ROLE}}") button'. DO NOT hardcode a specific generated string.
+   - If user step asks for a random first name, use value: "{{GEN_FIRST_NAME}}".
+   - If user step asks for a random last name, use value: "{{GEN_LAST_NAME}}".
+   - If user step asks for a random zip/postal code, use value: "{{GEN_ZIP}}".
+   - If user step asks for a random user name or full name, use value: "{{GEN_NAME}}".
+   - If user step asks for a random email, use value: "{{GEN_EMAIL}}".
+   - When referring to a specific item or product in a list/row, scope using valid selectors like '.inventory_item:has-text("...") button'.
 4. Return strict JSON according to the schema.
 `;
 

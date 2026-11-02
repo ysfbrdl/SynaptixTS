@@ -1,0 +1,26 @@
+name: SauceDemo - Complete E2E Checkout Test
+description: Verify end-to-end shopping flow from product selection to order completion
+tags:
+  - smoke
+  - checkout
+  - e2e
+steps:
+  - Go to https://www.saucedemo.com/
+  - Type 'standard_user' into the username input
+  - Type 'secret_sauce' into the password input
+  - Click the login button
+  - Click 'Add to cart' button for 'Sauce Labs Backpack'
+  - Click the shopping cart icon
+  - Click the 'Checkout' button
+  - "Verify that 'Checkout: Your Information' is visible"
+  - Type a random first name into the first name input
+  - Type a random last name into the last name input
+  - Type a random zip into the postal code input
+  - Click the 'Continue' button
+  - "Verify that 'Checkout: Overview' is visible"
+  - Verify that 'Payment Information' is visible
+  - Click the 'Finish' button
+  - Verify that 'Thank you for your order!' is visible
+  - Click the 'Back Home' button
+  - Verify that 'Products' is visible
+

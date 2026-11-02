@@ -12,7 +12,11 @@ dist/
 .env.local
 .env.*.local
 
-# Reports & Screenshots (Keep directory structure if needed)
+# Smart cache scenario runtime files
+.cache/scenarios/*
+!.cache/scenarios/.gitkeep
+
+# Reports & Screenshots
 reports/*.html
 reports/screenshots/
 

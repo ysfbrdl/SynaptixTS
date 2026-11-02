@@ -1,0 +1,13 @@
+name: SauceDemo - Successful Login Test
+description: Verify standard user can login and see the inventory products page
+tags:
+  - smoke
+  - login
+steps:
+  - Go to https://www.saucedemo.com/
+  - Type 'standard_user' into the username input
+  - Type 'secret_sauce' into the password input
+  - Click the login button
+  - Verify that 'Products' is visible
+  - Verify that 'Sauce Labs Backpack' is visible
+

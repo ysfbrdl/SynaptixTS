@@ -1,0 +1,13 @@
+name: SauceDemo - Locked Out User Negative Test
+description: Verify locked out user receives an error message
+tags:
+  - regression
+  - login
+  - negative
+steps:
+  - Go to https://www.saucedemo.com/
+  - Type 'locked_out_user' into the username input
+  - Type 'secret_sauce' into the password input
+  - Click the login button
+  - "Verify that 'Epic sadface: Sorry, this user has been locked out.' is visible"
+

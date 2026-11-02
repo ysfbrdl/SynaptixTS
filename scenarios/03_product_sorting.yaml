@@ -1,0 +1,16 @@
+name: SauceDemo - Product Sorting Test
+description: Verify that product sorting by price and name works correctly
+tags:
+  - regression
+  - inventory
+steps:
+  - Go to https://www.saucedemo.com/
+  - Type 'standard_user' into the username input
+  - Type 'secret_sauce' into the password input
+  - Click the login button
+  - Verify that 'Products' is visible
+  - Select 'Price (low to high)' from the product sort dropdown
+  - Verify that 'Sauce Labs Onesie' is visible
+  - Select 'Name (Z to A)' from the product sort dropdown
+  - Verify that 'Test.allTheThings() T-Shirt (Red)' is visible
+

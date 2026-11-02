@@ -52,6 +52,10 @@ export class TestRunner {
         let stepObj: Step;
         if (typeof stepRaw === 'string') {
           stepObj = { name: stepRaw, action: stepRaw };
+        } else if (stepRaw && typeof stepRaw === 'object' && !stepRaw.name && !stepRaw.Name && !stepRaw.action && !stepRaw.Action) {
+          const entries = Object.entries(stepRaw);
+          const fullText = entries.length > 0 ? `${entries[0][0]}: ${entries[0][1]}` : 'Step';
+          stepObj = { name: fullText, action: fullText };
         } else {
           stepObj = {
             name: stepRaw.name || stepRaw.Name || stepRaw.action || stepRaw.Action || 'Step',
@@ -197,6 +201,12 @@ export class TestRunner {
             action.value = '{{GEN_NAME}}';
           } else if (rawCheck.includes('random email') && action.actionType.toLowerCase() === 'type') {
             action.value = '{{GEN_EMAIL}}';
+          } else if (rawCheck.includes('random first name') && action.actionType.toLowerCase() === 'type') {
+            action.value = '{{GEN_FIRST_NAME}}';
+          } else if (rawCheck.includes('random last name') && action.actionType.toLowerCase() === 'type') {
+            action.value = '{{GEN_LAST_NAME}}';
+          } else if ((rawCheck.includes('random zip') || rawCheck.includes('random postal code')) && action.actionType.toLowerCase() === 'type') {
+            action.value = '{{GEN_ZIP}}';
           }
         }
 
@@ -337,7 +347,18 @@ export class TestRunner {
           const paginatorDropdown = page.locator('.p-paginator p-dropdown, .p-paginator .p-dropdown-label, .p-paginator-rpp-options, p-dropdown, mat-select').first();
           if (await paginatorDropdown.isVisible({ timeout: 2000 }).catch(() => false)) {
             await paginatorDropdown.click({ timeout: 5000 }).catch(() => {});
-            await page.waitForTimeout(500);
+            const isNavAction =
+              action.semanticName?.toLowerCase().match(/^(checkout|continue|finish|back|shopping cart|cart)$/) ||
+              action.description?.toLowerCase().includes('checkout') ||
+              action.description?.toLowerCase().includes('continue') ||
+              action.description?.toLowerCase().includes('cart') ||
+              action.description?.toLowerCase().includes('finish');
+            if (isNavAction) {
+              await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+              await page.waitForTimeout(800);
+            } else {
+              await page.waitForTimeout(400);
+            }
             const item20 = page.locator('p-dropdownitem:has-text("20"), [role="option"]:has-text("20"), li:has-text("20"), .p-dropdown-item:has-text("20")').first();
             if (await item20.isVisible({ timeout: 3000 }).catch(() => false)) {
               await item20.click({ timeout: 5000 });
@@ -393,12 +414,13 @@ export class TestRunner {
           console.log(`   ⏳ Post-login redirect detected. Waiting for URL navigation...`);
           // Wait for redirect away from login page (up to 20s for SSO chains)
           await page.waitForURL(
-            url => !url.pathname.includes('/auth/login') && !url.pathname.includes('/login'),
+            url => url.pathname.includes('/inventory.html') || (!url.pathname.includes('/auth/login') && !url.pathname.includes('/login') && url.pathname !== '/' && url.pathname !== ''),
             { timeout: 20000 }
           ).catch(() => {});
           // Wait for full page load including SSO redirects (networkidle = no requests for 500ms)
           await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
           await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+          await page.waitForTimeout(600);
         } else {
           // Post-save/submit: if a modal/dialog was open, wait for it to close
           const isSaveOrSubmit =
@@ -417,7 +439,18 @@ export class TestRunner {
             // Also wait for network to settle after save (API call)
             await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
           } else {
-            await page.waitForTimeout(500);
+            const isNavAction =
+              action.semanticName?.toLowerCase().match(/^(checkout|continue|finish|back|shopping cart|cart)$/) ||
+              action.description?.toLowerCase().includes('checkout') ||
+              action.description?.toLowerCase().includes('continue') ||
+              action.description?.toLowerCase().includes('cart') ||
+              action.description?.toLowerCase().includes('finish');
+            if (isNavAction) {
+              await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+              await page.waitForTimeout(800);
+            } else {
+              await page.waitForTimeout(400);
+            }
           }
         }
         break;
@@ -492,7 +525,7 @@ export class TestRunner {
 
           for (const variant of searchVariants) {
             const isVisibleText = await page.getByText(variant, { exact: false }).first()
-              .waitFor({ state: 'visible', timeout: 3000 })
+              .waitFor({ state: 'visible', timeout: 6000 })
               .then(() => true)
               .catch(() => false);
             if (isVisibleText) {
@@ -526,7 +559,7 @@ export class TestRunner {
           } catch {
             if (targetText) {
               const isVisibleText = await page.getByText(targetText, { exact: false }).first()
-                .waitFor({ state: 'visible', timeout: 3000 })
+                .waitFor({ state: 'visible', timeout: 6000 })
                 .then(() => true)
                 .catch(() => false);
               if (isVisibleText) return;
@@ -576,6 +609,27 @@ export class TestRunner {
         this.scenarioContext.set('GEN_PHONE', faker.phone.number());
       }
       result = result.replace(/{{GEN_PHONE}}/g, this.scenarioContext.get('GEN_PHONE')!);
+    }
+
+    if (result.includes('{{GEN_FIRST_NAME}}')) {
+      if (!this.scenarioContext.has('GEN_FIRST_NAME')) {
+        this.scenarioContext.set('GEN_FIRST_NAME', faker.person.firstName());
+      }
+      result = result.replace(/{{GEN_FIRST_NAME}}/g, this.scenarioContext.get('GEN_FIRST_NAME')!);
+    }
+
+    if (result.includes('{{GEN_LAST_NAME}}')) {
+      if (!this.scenarioContext.has('GEN_LAST_NAME')) {
+        this.scenarioContext.set('GEN_LAST_NAME', faker.person.lastName());
+      }
+      result = result.replace(/{{GEN_LAST_NAME}}/g, this.scenarioContext.get('GEN_LAST_NAME')!);
+    }
+
+    if (result.includes('{{GEN_ZIP}}')) {
+      if (!this.scenarioContext.has('GEN_ZIP')) {
+        this.scenarioContext.set('GEN_ZIP', faker.location.zipCode());
+      }
+      result = result.replace(/{{GEN_ZIP}}/g, this.scenarioContext.get('GEN_ZIP')!);
     }
 
     return result;
